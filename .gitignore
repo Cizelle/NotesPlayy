@@ -1,31 +1,24 @@
-# Gradle
+
 .gradle/
 build/
 */build/
 !gradle-wrapper.jar
 
-# Local config
 local.properties
 .idea/
 *.iml
 
-# Keystores
 *.jks
 *.keystore
 
-# OS-specific
 .DS_Store
 Thumbs.db
 
-# Log
 *.log
 
-# Output
 *.apk
 *.aar
 
-# Captures
 captures/
 
-# NDK
 .externalNativeBuild/
