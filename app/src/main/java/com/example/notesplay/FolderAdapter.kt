@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
+//some comment
 class FolderAdapter(
     private val folderList: List<String>,
     private val onItemClick: (String) -> Unit
