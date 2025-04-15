@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.Button
 import android.widget.EditText
+import android.widget.SearchView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -20,9 +21,12 @@ import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.io.BufferedReader
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStreamReader
 
 private const val CAMERA_PERMISSION_REQUEST = 100
 private const val CAMERA_REQUEST_CODE = 101
@@ -37,6 +41,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewFoldersButton: Button
     private lateinit var captureNoteButton: Button
     private lateinit var importNoteButton: Button
+    private lateinit var searchView: SearchView
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         viewFoldersButton = findViewById(R.id.viewFoldersButton)
         captureNoteButton = findViewById(R.id.captureNoteButton)
         importNoteButton = findViewById(R.id.importNoteButton)
+        searchView = findViewById(R.id.searchView)
 
         createFolderButtonMain.setOnClickListener {
             val intent = Intent(this, CreateFolderActivity::class.java)
@@ -83,7 +90,102 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter some text.", Toast.LENGTH_SHORT).show()
             }
         }
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { performSearch(it) }
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                newText?.let { performSearch(it) } // Optional: Search as you type
+                return true
+            }
+        })
     }
+
+    private fun performSearch(query: String) {
+        val searchResults = mutableListOf<Pair<String, String>>()
+        val rootDir = filesDir
+
+        fun searchInFolder(folder: File) {
+            folder.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    val fileName = file.name
+                    val fileContent = readFileContent(file)
+                    if (fileContent.contains(query, ignoreCase = true)) {
+                        searchResults.add(Pair(fileName, folder.name))
+                    }
+                } else if (file.isDirectory) {
+                    searchInFolder(file)
+                }
+            }
+        }
+
+        searchInFolder(rootDir)
+
+        if (searchResults.isNotEmpty()) {
+            showSearchResultsDialog(searchResults)
+        } else {
+            Toast.makeText(this, "No notes found matching '$query'.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun readFileContent(file: File): String {
+        var content = ""
+        try {
+            val fis = FileInputStream(file)
+            val isr = InputStreamReader(fis)
+            val br = BufferedReader(isr)
+            val sb = StringBuilder()
+            var line = br.readLine()
+            while (line != null) {
+                sb.append(line).append("\n")
+                line = br.readLine()
+            }
+            content = sb.toString()
+            br.close()
+            isr.close()
+            fis.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+        return content
+    }
+
+    private fun showSearchResultsDialog(results: List<Pair<String, String>>) {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Search Results")
+        val resultItems = results.map { "${it.first} (in ${it.second})" }.toTypedArray()
+        builder.setItems(resultItems) { dialog, which ->
+            val selectedResult = results[which]
+            val fileName = selectedResult.first
+            val folderName = selectedResult.second
+            // Open the selected note
+            if (fileName.endsWith(".txt")) {
+                val intent = Intent(this, ViewNoteActivity::class.java)
+                intent.putExtra("FOLDER_NAME", folderName)
+                intent.putExtra("NOTE_FILE_NAME", fileName)
+                startActivity(intent)
+            } else if (fileName.endsWith(".jpg")) {
+                val intent = Intent(this, ViewImageNoteActivity::class.java)
+                intent.putExtra("FOLDER_NAME", folderName)
+                intent.putExtra("NOTE_FILE_NAME", fileName)
+                startActivity(intent)
+            }
+        }
+        builder.setPositiveButton("Close") { dialog, _ ->
+            dialog.dismiss()
+        }
+        builder.show()
+    }
+
+
+
+
+
+
+
 
     private fun showFolderSelectionDialog(noteText: String) {
         val filesDir = filesDir
@@ -181,17 +283,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun recognizeText(bitmap: Bitmap) {
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) // Using Latin options
+
         val image = InputImage.fromBitmap(bitmap, 0)
 
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
                 val extractedText = visionText.text
                 if (extractedText.isNotEmpty()) {
-                    val imageName = generateUniqueFileName(".jpg") // Generate the image filename
-                    val textFileName = imageName.replace(".jpg", ".txt") // Create corresponding text filename
+                    val imageName = generateUniqueFileName(".jpg")
+                    val textFileName = imageName.replace(".jpg", ".txt")
                     saveTextToFile(extractedText, "image_notes", textFileName)
-                    Toast.makeText(this, "Text extracted and saved!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Text extracted (including handwriting?) and saved!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "No text found in the image.", Toast.LENGTH_SHORT).show()
                 }

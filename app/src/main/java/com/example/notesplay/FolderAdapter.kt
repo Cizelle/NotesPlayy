@@ -1,6 +1,7 @@
 package com.example.notesplay
 
 import android.content.Intent
+import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,14 +10,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
-//some comment
+
 class FolderAdapter(
     private val folderList: List<String>,
     private val onItemClick: (String) -> Unit
 ) : RecyclerView.Adapter<FolderAdapter.FolderViewHolder>() {
 
-    inner class FolderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class FolderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), View.OnCreateContextMenuListener {
         val folderNameTextView: TextView = itemView.findViewById(android.R.id.text1)
+        var currentFolderName: String? = null
 
         init {
             itemView.setOnClickListener {
@@ -26,10 +28,23 @@ class FolderAdapter(
                 itemView.context.startActivity(intent)
             }
 
-            // Hold to delete
-            itemView.setOnLongClickListener {
-                val folderToDelete = folderList[adapterPosition]
-                (itemView.context as? FolderListActivity)?.showDeleteFolderConfirmationDialog(folderToDelete)
+            itemView.setOnCreateContextMenuListener(this)
+        }
+
+        override fun onCreateContextMenu(menu: ContextMenu?, v: View?, menuInfo: ContextMenu.ContextMenuInfo?) {
+            val renameItem = menu?.add(0, R.id.context_menu_rename, 0, "Rename")
+            val deleteItem = menu?.add(0, R.id.context_menu_delete, 1, "Delete")
+
+            renameItem?.setOnMenuItemClickListener {
+                (itemView.context as? FolderListActivity)?.showRenameFolderDialog(currentFolderName)
+                true
+            }
+            deleteItem?.setOnMenuItemClickListener {
+                currentFolderName?.let { it1 ->
+                    (itemView.context as? FolderListActivity)?.showDeleteFolderConfirmationDialog(
+                        it1
+                    )
+                }
                 true
             }
         }
@@ -44,9 +59,11 @@ class FolderAdapter(
     override fun onBindViewHolder(holder: FolderViewHolder, position: Int) {
         val currentFolder = folderList[position]
         holder.folderNameTextView.text = currentFolder
+        holder.currentFolderName = currentFolder
     }
 
     override fun getItemCount(): Int {
         return folderList.size
     }
+
 }
