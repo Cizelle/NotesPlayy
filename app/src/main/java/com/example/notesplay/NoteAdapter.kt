@@ -46,6 +46,12 @@ class NoteAdapter(
             val renameItem = menu?.add(0, R.id.context_menu_rename, 0, "Rename")
             val deleteItem = menu?.add(0, R.id.context_menu_delete, 1, "Delete")
             val moveItem = menu?.add(0, R.id.context_menu_move, 2, "Move to Folder")
+            val generateQuizItem = menu?.add(
+                0,
+                R.id.context_menu_generate_quiz,
+                3,
+                "Generate Quiz"
+            ) // Added Generate Quiz
 
             renameItem?.setOnMenuItemClickListener {
                 (itemView.context as? NoteListActivity)?.showRenameNoteDialog(currentNoteFileName)
@@ -60,7 +66,23 @@ class NoteAdapter(
                 true
             }
             moveItem?.setOnMenuItemClickListener {
-                (itemView.context as? NoteListActivity)?.showFolderSelectionDialogForMove(currentNoteFileName)
+                (itemView.context as? NoteListActivity)?.showFolderSelectionDialogForMove(
+                    currentNoteFileName
+                )
+                true
+            }
+            generateQuizItem?.setOnMenuItemClickListener {
+                val noteContent =
+                    (itemView.context as? NoteListActivity)?.getNoteContent(currentNoteFileName)
+                if (noteContent != null) {
+                    (itemView.context as? NoteListActivity)?.startQuizGeneration(noteContent)
+                } else {
+                    Toast.makeText(
+                        itemView.context,
+                        "Error loading note content for quiz.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
                 true
             }
         }

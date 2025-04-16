@@ -31,6 +31,8 @@
         <activity android:name=".NoteListActivity" />
         <activity android:name=".ViewNoteActivity" />
         <activity android:name=".ViewImageNoteActivity"/>
+        <activity android:name=".QuizActivity"/>
+        <activity android:name=".QuizResultsActivity"/>
     </application>
 
 </manifest>

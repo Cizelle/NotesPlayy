@@ -1,5 +1,6 @@
 package com.example.notesplay
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.Toast
@@ -8,6 +9,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import androidx.appcompat.app.AlertDialog
+import java.io.FileInputStream
+import java.io.IOException
+import android.util.Log
+import java.util.Collections
+import com.example.notesplay.QuizItem
 
 
 class NoteListActivity : AppCompatActivity() {
@@ -185,4 +191,65 @@ class NoteListActivity : AppCompatActivity() {
             }
         }
     }
+
+    fun getNoteContent(noteFileName: String?): String? {
+        currentFolderName?.let { folderName ->
+            val noteFile = File(filesDir, File(folderName, noteFileName).path)
+            if (noteFile.exists()) {
+                return try {
+                    FileInputStream(noteFile).bufferedReader().use { it.readText() }
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    Toast.makeText(this, "Error reading note content.", Toast.LENGTH_SHORT).show()
+                    return null
+                }
+            }
+        }
+        return null
+    }
+
+    fun startQuizGeneration(noteContent: String) {
+        val sentences = noteContent.split(". ", "! ", "? ")
+        val quizItems = mutableListOf<QuizItem>()
+        val allKeywords = mutableSetOf<String>()
+
+        for (sentence in sentences) {
+            val words = sentence.split(" ")
+            for (word in words) {
+                if (word.isNotBlank() && word[0].isUpperCase()) {
+                    allKeywords.add(word.trim().replace(Regex("[.,?!]$"), ""))
+                }
+            }
+        }
+        val keywordList = allKeywords.toList()
+
+        for (sentence in sentences) {
+            val words = sentence.split(" ")
+            for (i in words.indices) {
+                if (words[i].isNotBlank() && words[i][0].isUpperCase()) {
+                    val correctAnswer = words[i].trim().replace(Regex("[.,?!]$"), "")
+                    val question = sentence.replaceFirst(correctAnswer, "_____")
+
+                    if (question != sentence) {
+                        val distractors = keywordList.filter { it != correctAnswer }.shuffled().take(3)
+                        val options = mutableListOf(correctAnswer)
+                        options.addAll(distractors)
+                        options.shuffle()
+
+                        quizItems.add(QuizItem(question, correctAnswer, options))
+                        break
+                    }
+                }
+            }
+        }
+
+        if (quizItems.isNotEmpty()) {
+            val intent = Intent(this, QuizActivity::class.java)
+            intent.putExtra("QUIZ_QUESTIONS", quizItems as java.io.Serializable)
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "Could not generate quiz questions.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
 }
