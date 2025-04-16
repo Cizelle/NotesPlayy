@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                newText?.let { performSearch(it) } // Optional: Search as you type
+                newText?.let { performSearch(it) }
                 return true
             }
         })

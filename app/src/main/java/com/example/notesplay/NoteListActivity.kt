@@ -11,9 +11,6 @@ import java.io.File
 import androidx.appcompat.app.AlertDialog
 import java.io.FileInputStream
 import java.io.IOException
-import android.util.Log
-import java.util.Collections
-import com.example.notesplay.QuizItem
 
 
 class NoteListActivity : AppCompatActivity() {

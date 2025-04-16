@@ -97,7 +97,7 @@ class NoteAdapter(
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
         val currentNote = noteList[position]
         holder.noteNameTextView.text = currentNote
-        holder.currentNoteFileName = currentNote // Set the filename
+        holder.currentNoteFileName = currentNote
     }
 
     override fun getItemCount(): Int {
