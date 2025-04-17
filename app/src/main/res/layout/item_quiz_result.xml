@@ -6,7 +6,7 @@
     android:padding="8dp"
     android:layout_marginBottom="8dp"
     android:background="#F0F0F0">
-
+//hi
     <TextView
         android:id="@+id/questionTextView"
         android:layout_width="match_parent"
