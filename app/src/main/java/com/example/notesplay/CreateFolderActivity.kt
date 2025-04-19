@@ -10,7 +10,7 @@ import java.io.File
 class CreateFolderActivity : AppCompatActivity() {
 
     private lateinit var folderNameEditText: EditText
-    private lateinit var createFolderButton: Button
+    private lateinit var createFolderButton: Button // yo remove meee
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
