@@ -1,5 +1,6 @@
 package com.example.notesplay
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -14,6 +15,7 @@ class ViewNoteActivity : AppCompatActivity() {
 
     private lateinit var noteEditText: EditText
     private lateinit var saveEditedNoteButton: Button
+    private lateinit var noteTitleEditText: EditText
     private var currentFolderName: String? = null
     private var currentNoteFileName: String? = null
 
@@ -22,6 +24,7 @@ class ViewNoteActivity : AppCompatActivity() {
         setContentView(R.layout.activity_view_note)
 
         noteEditText = findViewById(R.id.noteEditText)
+        noteTitleEditText = findViewById(R.id.noteTitleEditText)
         saveEditedNoteButton = findViewById(R.id.saveEditedNoteButton)
 
         currentFolderName = intent.getStringExtra("FOLDER_NAME")
@@ -36,38 +39,65 @@ class ViewNoteActivity : AppCompatActivity() {
     }
 
     private fun loadNoteContent() {
-        currentFolderName?.let { folderName ->
-            currentNoteFileName?.let { fileName ->
+        currentNoteFileName?.let { fileName ->
+            currentFolderName?.let { folderName ->
                 val file = File(filesDir, File(folderName, fileName).path)
-                try {
-                    val fileInputStream = FileInputStream(file)
-                    val buffer = ByteArray(fileInputStream.available())
-                    fileInputStream.read(buffer)
-                    val noteContent = String(buffer)
-                    noteEditText.setText(noteContent)
-                    fileInputStream.close()
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                    noteEditText.setText("Error loading note.")
+                if (file.exists()) {
+                    try {
+                        val text = FileInputStream(file).bufferedReader().use { it.readText() }
+                        noteEditText.setText(text)
+
+                        val title = fileName.removeSuffix(".txt").removeSuffix(".jpg")
+                        noteTitleEditText.setText(title)
+
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                        Toast.makeText(this, "Error loading note.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
     }
 
     private fun saveEditedNote() {
+        val noteContent = noteEditText.text.toString()
+        var newNoteTitle = noteTitleEditText.text.toString().trim()
+
+        if (newNoteTitle.isEmpty()) {
+            newNoteTitle = "Untitled Note ${System.currentTimeMillis()}"
+        }
+
+        val newFileNameWithExtension = if (currentNoteFileName?.endsWith(".jpg") == true) {
+            "$newNoteTitle.jpg"
+        } else {
+            "$newNoteTitle.txt"
+        }
+
         currentFolderName?.let { folderName ->
-            currentNoteFileName?.let { fileName ->
-                val file = File(filesDir, File(folderName, fileName).path)
-                val editedText = noteEditText.text.toString()
+            val oldFile = currentNoteFileName?.let { File(filesDir, File(folderName, it).path) }
+            val newFile = File(filesDir, File(folderName, newFileNameWithExtension).path)
+
+            if (oldFile == null || oldFile.name == newFileNameWithExtension || !newFile.exists()) {
                 try {
-                    val fileOutputStream = FileOutputStream(file)
-                    fileOutputStream.write(editedText.toByteArray())
-                    fileOutputStream.close()
-                    Toast.makeText(this, "Changes saved!", Toast.LENGTH_SHORT).show()
+                    FileOutputStream(newFile).use { it.write(noteContent.toByteArray()) }
+
+                    if (currentNoteFileName?.endsWith(".jpg") == true && currentNoteFileName?.replace(".jpg", ".txt") != newFileNameWithExtension.replace(".jpg", ".txt")) {
+                        val oldTextFile = currentNoteFileName?.replace(".jpg", ".txt")?.let { File(filesDir, File(folderName, it).path) }
+                        val newTextFile = newFileNameWithExtension.replace(".jpg", ".txt").let { File(filesDir, File(folderName, it).path) }
+                        oldTextFile?.renameTo(newTextFile)
+                    }
+
+                    currentNoteFileName = newFileNameWithExtension
+                    Toast.makeText(this, "Note saved as '$newFileNameWithExtension'.", Toast.LENGTH_SHORT).show()
+                    val resultIntent = Intent()
+                    setResult(RESULT_OK, resultIntent)
+                    finish()
                 } catch (e: IOException) {
                     e.printStackTrace()
-                    Toast.makeText(this, "Error saving changes.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Error saving note.", Toast.LENGTH_SHORT).show()
                 }
+            } else {
+                Toast.makeText(this, "A note with the title '$newNoteTitle' already exists.", Toast.LENGTH_SHORT).show()
             }
         }
     }

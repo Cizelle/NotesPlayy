@@ -16,24 +16,32 @@ class NoteAdapter(
 ) : RecyclerView.Adapter<NoteAdapter.NoteViewHolder>() {
 
 
+
     inner class NoteViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), View.OnCreateContextMenuListener {
         val noteNameTextView: TextView = itemView.findViewById(android.R.id.text1)
         var currentNoteFileName: String? = null
 
+
         init {
             itemView.setOnClickListener {
                 currentNoteFileName?.let { fileName ->
-                    folderName?.let {
+                    folderName?.let { folder ->
                         if (fileName.endsWith(".txt")) {
                             val intent = Intent(itemView.context, ViewNoteActivity::class.java)
-                            intent.putExtra("FOLDER_NAME", it)
+                            intent.putExtra("FOLDER_NAME", folder)
                             intent.putExtra("NOTE_FILE_NAME", fileName)
-                            itemView.context.startActivity(intent)
+                            (itemView.context as? NoteListActivity)?.startActivityForResult(
+                                intent,
+                                NoteListActivity.VIEW_NOTE_REQUEST_CODE
+                            )
                         } else if (fileName.endsWith(".jpg")) {
                             val intent = Intent(itemView.context, ViewImageNoteActivity::class.java)
-                            intent.putExtra("FOLDER_NAME", it)
+                            intent.putExtra("FOLDER_NAME", folder)
                             intent.putExtra("NOTE_FILE_NAME", fileName)
-                            itemView.context.startActivity(intent)
+                            (itemView.context as? NoteListActivity)?.startActivityForResult(
+                                intent,
+                                NoteListActivity.VIEW_NOTE_REQUEST_CODE
+                            )
                         }
                     }
                 }
@@ -51,7 +59,7 @@ class NoteAdapter(
                 R.id.context_menu_generate_quiz,
                 3,
                 "Generate Quiz"
-            ) // Added Generate Quiz
+            )
 
             renameItem?.setOnMenuItemClickListener {
                 (itemView.context as? NoteListActivity)?.showRenameNoteDialog(currentNoteFileName)

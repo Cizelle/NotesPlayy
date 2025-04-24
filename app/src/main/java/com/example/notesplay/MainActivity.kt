@@ -42,6 +42,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var captureNoteButton: Button
     private lateinit var importNoteButton: Button
     private lateinit var searchView: SearchView
+    private lateinit var noteTitleEditTextMain: EditText
+    private var selectedFolder:String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         captureNoteButton = findViewById(R.id.captureNoteButton)
         importNoteButton = findViewById(R.id.importNoteButton)
         searchView = findViewById(R.id.searchView)
+        noteTitleEditTextMain = findViewById(R.id.noteTitleEditTextMain)
 
         createFolderButtonMain.setOnClickListener {
             val intent = Intent(this, CreateFolderActivity::class.java)
@@ -84,12 +87,20 @@ class MainActivity : AppCompatActivity() {
 
         saveNoteButton.setOnClickListener {
             val noteText = noteEditText.text.toString()
+            val noteTitle = noteTitleEditTextMain.text.toString().trim()
+
             if (noteText.isNotEmpty()) {
-                showFolderSelectionDialog(noteText)
+                if (noteTitle.isNotEmpty()) {
+                    showFolderSelectionDialog(noteText, noteTitle)
+                } else {
+                    Toast.makeText(this, "Please provide a note title.", Toast.LENGTH_SHORT).show()
+                }
             } else {
-                Toast.makeText(this, "Please enter some text.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please enter some text in the note.", Toast.LENGTH_SHORT).show()
             }
         }
+
+
 
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -180,32 +191,26 @@ class MainActivity : AppCompatActivity() {
         builder.show()
     }
 
-
-
-
-
-
-
-
-    private fun showFolderSelectionDialog(noteText: String) {
+    private fun showFolderSelectionDialog(noteText: String, noteTitle: String) {
         val filesDir = filesDir
         val directories = filesDir.listFiles { file -> file.isDirectory }
         val folderNames = directories?.map { it.name }?.toTypedArray() ?: arrayOf("default_folder")
 
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Save Note To Folder")
+        builder.setTitle("Select Folder to Save Note")
             .setItems(folderNames) { dialog, which ->
                 val selectedFolder = folderNames[which]
-                saveNoteToFile(noteText, selectedFolder, generateUniqueFileName(".txt"))
-                noteEditText.text.clear()
-                Toast.makeText(this, "Note saved to $selectedFolder!", Toast.LENGTH_SHORT).show()
+                saveNoteToFile(noteText, selectedFolder, "$noteTitle.txt")
                 dialog.dismiss()
+                Toast.makeText(this, "Note saved to folder '$selectedFolder' with title '$noteTitle'!", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.cancel()
             }
             .show()
     }
+
+
     private fun checkCameraPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -326,21 +331,23 @@ class MainActivity : AppCompatActivity() {
         return "note_${System.currentTimeMillis()}${extension}"
     }
 
-    private fun saveNoteToFile(note: String, folderName: String, fileName: String) {
-        val directory = File(filesDir, folderName)
-        if (!directory.exists()) {
-            directory.mkdirs()
+    private fun saveNoteToFile(noteText: String, folderName: String, fileName: String) {
+        val folderPath = File(filesDir, folderName)
+        if (!folderPath.exists()) {
+            folderPath.mkdirs()
         }
-        val file = File(directory, fileName)
+
+        val file = File(folderPath, fileName)
         try {
-            val fileOutputStream = FileOutputStream(file)
-            fileOutputStream.write(note.toByteArray())
-            fileOutputStream.close()
+            FileOutputStream(file).use {
+                it.write(noteText.toByteArray())
+            }
         } catch (e: IOException) {
             e.printStackTrace()
-            Toast.makeText(this, "Error saving text note.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Error saving note: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun saveImageToFile(bitmap: Bitmap, folderName: String, fileName: String) {
         val directory = File(filesDir, folderName)
@@ -360,7 +367,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkGalleryPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            true // No runtime permission needed for media on Android 13+
+            true
         } else {
             ContextCompat.checkSelfPermission(
                 this,
@@ -386,28 +393,5 @@ class MainActivity : AppCompatActivity() {
         startActivityForResult(intent, GALLERY_REQUEST_CODE)
     }
 
-    private fun saveImageFromUri(uri: Uri, folderName: String, fileName: String) {
-        val directory = File(filesDir, folderName)
-        if (!directory.exists()) {
-            directory.mkdirs()
-        }
-        val file = File(directory, fileName)
-        try {
-            val bitmap: Bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val source = ImageDecoder.createSource(contentResolver, uri)
-                ImageDecoder.decodeBitmap(source)
-            } else {
-                MediaStore.Images.Media.getBitmap(contentResolver, uri)
-            }
-
-            val fileOutputStream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fileOutputStream)
-            fileOutputStream.close()
-            Toast.makeText(this, "Image from gallery saved!", Toast.LENGTH_SHORT).show()
-        } catch (e: IOException) {
-            e.printStackTrace()
-            Toast.makeText(this, "Error saving image from gallery.", Toast.LENGTH_SHORT).show()
-        }
-    }
 
 }

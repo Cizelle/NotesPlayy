@@ -3,14 +3,26 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:gravity="center_horizontal">
 
     <SearchView
         android:id="@+id/searchView"
-        android:layout_width="match_parent"
+        android:layout_width="383dp"
         android:layout_height="wrap_content"
         android:iconifiedByDefault="false"
         android:queryHint="Search notes..." />
+
+    <EditText
+        android:id="@+id/noteTitleEditTextMain"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginBottom="8dp"
+        android:hint="Note Title"
+        android:padding="8dp"
+        android:paddingTop="8dp"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/noteEditText"
@@ -21,32 +33,33 @@
         android:hint="Enter your note here..." />
 
     <Button
+
         android:id="@+id/saveNoteButton"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="Save Note" />
 
     <Button
         android:id="@+id/createFolderButtonMain"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="Create Folder" />
 
     <Button
         android:id="@+id/viewFoldersButton"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="View Folders" />
 
     <Button
         android:id="@+id/captureNoteButton"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="Capture Note" />
 
     <Button
         android:id="@+id/importNoteButton"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="Import from Gallery" />
 

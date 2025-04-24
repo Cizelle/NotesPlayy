@@ -10,7 +10,7 @@ import java.io.File
 class CreateFolderActivity : AppCompatActivity() {
 
     private lateinit var folderNameEditText: EditText
-    private lateinit var createFolderButton: Button // yo remove meee
+    private lateinit var createFolderButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +26,7 @@ class CreateFolderActivity : AppCompatActivity() {
                 if (!directory.exists()) {
                     if (directory.mkdirs()) {
                         Toast.makeText(this, "Folder '$folderName' created!", Toast.LENGTH_SHORT).show()
-                        finish() // Go back to the previous screen
+                        finish()
                     } else {
                         Toast.makeText(this, "Failed to create folder.", Toast.LENGTH_SHORT).show()
                     }

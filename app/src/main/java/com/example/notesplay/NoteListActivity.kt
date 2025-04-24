@@ -4,14 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
-import androidx.appcompat.app.AlertDialog
 import java.io.FileInputStream
 import java.io.IOException
-
 
 class NoteListActivity : AppCompatActivity() {
 
@@ -31,16 +30,21 @@ class NoteListActivity : AppCompatActivity() {
         loadNotes()
 
         noteAdapter = NoteAdapter(notes, currentFolderName) { noteFileName ->
+            // Placeholder for potential item click action if needed
         }
+
         noteRecyclerView.adapter = noteAdapter
         supportActionBar?.title = currentFolderName
     }
 
     private fun loadNotes() {
+        notes.clear()
         currentFolderName?.let { folderName ->
             val directory = File(filesDir, folderName)
             if (directory.exists() && directory.isDirectory) {
-                val noteFiles = directory.listFiles { file -> file.isFile && (file.name.endsWith(".txt") || file.name.endsWith(".jpg")) }
+                val noteFiles = directory.listFiles { file ->
+                    file.isFile && (file.name.endsWith(".txt") || file.name.endsWith(".jpg"))
+                }
                 noteFiles?.forEach {
                     notes.add(it.name)
                 }
@@ -122,8 +126,8 @@ class NoteListActivity : AppCompatActivity() {
                             oldTextFile.renameTo(newTextFile)
                         }
                     }
-
                     loadNotes()
+                    noteAdapter.notifyDataSetChanged()
                     Toast.makeText(this, "Note renamed to '$newFileNameWithExtension'.", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Error renaming note.", Toast.LENGTH_SHORT).show()
@@ -137,12 +141,11 @@ class NoteListActivity : AppCompatActivity() {
     }
 
     fun showFolderSelectionDialogForMove(noteFileName: String?) {
-        val filesDir = filesDir
         val directories = filesDir.listFiles { file -> file.isDirectory }
         val folderNames = directories?.map { it.name }?.toTypedArray() ?: arrayOf("default_folder")
 
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Move Note To Folder")
+        AlertDialog.Builder(this)
+            .setTitle("Move Note To Folder")
             .setItems(folderNames) { dialog, which ->
                 val destinationFolder = folderNames[which]
                 if (currentFolderName != destinationFolder && noteFileName != null) {
@@ -167,7 +170,6 @@ class NoteListActivity : AppCompatActivity() {
 
             if (sourceFile.exists() && !destinationFile.exists()) {
                 if (sourceFile.renameTo(destinationFile)) {
-                    // Move the associated text file if it's an image note
                     if (noteFileName.endsWith(".jpg")) {
                         val sourceTextFile = File(filesDir, File(sourceFolder, noteFileName.replace(".jpg", ".txt")).path)
                         val destinationTextFile = File(filesDir, File(destinationFolder, noteFileName.replace(".jpg", ".txt")).path)
@@ -175,8 +177,8 @@ class NoteListActivity : AppCompatActivity() {
                             sourceTextFile.renameTo(destinationTextFile)
                         }
                     }
-
-                    loadNotes() // Reload the list to reflect the move
+                    loadNotes()
+                    noteAdapter.notifyDataSetChanged()
                     Toast.makeText(this, "Note '$noteFileName' moved to '$destinationFolder'.", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Error moving note.", Toast.LENGTH_SHORT).show()
@@ -198,7 +200,7 @@ class NoteListActivity : AppCompatActivity() {
                 } catch (e: IOException) {
                     e.printStackTrace()
                     Toast.makeText(this, "Error reading note content.", Toast.LENGTH_SHORT).show()
-                    return null
+                    null
                 }
             }
         }
@@ -249,4 +251,16 @@ class NoteListActivity : AppCompatActivity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == VIEW_NOTE_REQUEST_CODE && resultCode == RESULT_OK) {
+            notes.clear()
+            loadNotes()
+            noteAdapter.notifyDataSetChanged()
+        }
+    }
+
+    companion object {
+        const val VIEW_NOTE_REQUEST_CODE: Int = 123
+    }
 }
