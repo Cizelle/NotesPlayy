@@ -30,7 +30,6 @@ class NoteListActivity : AppCompatActivity() {
         loadNotes()
 
         noteAdapter = NoteAdapter(notes, currentFolderName) { noteFileName ->
-            // Placeholder for potential item click action if needed
         }
 
         noteRecyclerView.adapter = noteAdapter
@@ -237,7 +236,7 @@ class NoteListActivity : AppCompatActivity() {
 
                         val optionsString = optionsList.joinToString(", ")
 
-                        quizItems.add(QuizItem(question, correctAnswer, optionsString)) // Pass the correctAnswer
+                        quizItems.add(QuizItem(question, correctAnswer, optionsString))
                         break
                     }
                 }

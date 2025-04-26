@@ -48,7 +48,7 @@ class ViewImageNoteActivity : AppCompatActivity() {
                     val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
                     imageNoteView.setImageBitmap(bitmap)
                 } else {
-                    imageNoteView.setImageResource(android.R.drawable.ic_menu_report_image) // Placeholder
+                    imageNoteView.setImageResource(android.R.drawable.ic_menu_report_image)
                 }
             }
         }

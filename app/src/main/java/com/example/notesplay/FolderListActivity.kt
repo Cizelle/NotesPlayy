@@ -27,7 +27,7 @@ class FolderListActivity : AppCompatActivity() {
         loadFolders()
         folderAdapter = FolderAdapter(folders) { folderName ->
             val intent = Intent(this, NoteListActivity::class.java)
-            intent.putExtra("FOLDER_NAME", folderName) // Pass the folder name
+            intent.putExtra("FOLDER_NAME", folderName)
             startActivity(intent)
         }
         folderRecyclerView.adapter = folderAdapter
@@ -61,9 +61,9 @@ class FolderListActivity : AppCompatActivity() {
         val directoryToDelete = File(filesDir, folderName)
         if (directoryToDelete.exists() && directoryToDelete.isDirectory) {
             directoryToDelete.listFiles()?.forEach { file ->
-                file.delete() // Delete all files within the folder
+                file.delete()
             }
-            directoryToDelete.delete() // Delete the folder itself
+            directoryToDelete.delete()
             folders.remove(folderName)
             folderAdapter.notifyDataSetChanged()
             Toast.makeText(this, "Folder '$folderName' deleted.", Toast.LENGTH_SHORT).show()

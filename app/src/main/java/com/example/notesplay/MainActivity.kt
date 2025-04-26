@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
     private var searchResultsDialog: AlertDialog? = null
     private lateinit var searchResultItems: MutableList<Pair<String, String>>
     private lateinit var searchResultItemsAdapter: ArrayAdapter<String>
-    private var imageBitmap: Bitmap? = null // Hold the bitmap
+    private var imageBitmap: Bitmap? = null
     private var imageFileName: String? = null
     private var extractedText: String? = null
     private lateinit var renameEditText: EditText
@@ -122,13 +122,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Initialize the variables for search results
         searchResultItems = mutableListOf()
 
         searchResultItemsAdapter = ArrayAdapter(
             this,
             android.R.layout.simple_list_item_1,
-            mutableListOf() // ✅ start with empty, mutable list
+            mutableListOf()
         )
 
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -143,7 +142,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-// setup rename dialog
         setupRenameDialog()
     }
 
@@ -155,7 +153,7 @@ class MainActivity : AppCompatActivity() {
         if (searchResultItems.isNotEmpty()) {
             searchResultItemsAdapter.clear()
             val resultStrings = searchResultItems.map { "${it.first} (in ${it.second})" }
-            searchResultItemsAdapter.addAll(resultStrings) // ✅ add a list of strings
+            searchResultItemsAdapter.addAll(resultStrings)
             searchResultItemsAdapter.notifyDataSetChanged()
 
             if (searchResultsDialog == null || !searchResultsDialog!!.isShowing) {
@@ -170,7 +168,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun searchInFolder(folder: File, query: String) {
-        // Check if folder name matches the query
+
         if (folder.name.contains(query, ignoreCase = true)) {
             searchResultItems.add(Pair("📁 Folder: ${folder.name}", folder.parentFile?.name ?: "Root"))
         }
@@ -181,11 +179,11 @@ class MainActivity : AppCompatActivity() {
                 val fileContent = readFileContent(file)
 
                 if (fileName.contains(query, ignoreCase = true) || fileContent.contains(query, ignoreCase = true)) {
-                    // File match: show nicely
+
                     searchResultItems.add(Pair("📄 $fileName (in ${folder.name})", folder.name))
                 }
             } else if (file.isDirectory) {
-                searchInFolder(file, query) // Recursive search in subfolders
+                searchInFolder(file, query)
             }
         }
     }
@@ -287,7 +285,7 @@ class MainActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Select Folder to Save Image")
             .setItems(folderNames) { dialog, which ->
-                selectedFolder = folderNames[which] // Store the selected folder
+                selectedFolder = folderNames[which]
                 val imageToSave = imageBitmap
                 val fileNameToSave = imageFileName
                 val textToSave = extractedText
@@ -311,7 +309,7 @@ class MainActivity : AppCompatActivity() {
                 imageBitmap = null
                 imageFileName = null
                 extractedText = null
-                selectedFolder = null // Clear
+                selectedFolder = null
             }
             .show()
     }
@@ -535,7 +533,7 @@ class MainActivity : AppCompatActivity() {
         builder.setPositiveButton("Save") { dialog, _ ->
             val newName = renameEditText.text.toString().trim()
             if (newName.isNotEmpty() && currentImageToRename != null) {
-                // Use the selectedFolder here.  This is the key change.
+
                 val selectedFolderToUse = selectedFolder ?: "image_notes"
                 val imageToSave = imageBitmap
                 val textToSave = extractedText
@@ -554,7 +552,7 @@ class MainActivity : AppCompatActivity() {
                 imageFileName = null
                 extractedText = null
                 currentImageToRename = null
-                selectedFolder = null //clear
+                selectedFolder = null 
             } else {
                 Toast.makeText(this, "Please enter a valid name.", Toast.LENGTH_SHORT).show()
             }
@@ -565,7 +563,7 @@ class MainActivity : AppCompatActivity() {
             imageFileName = null
             extractedText = null
             currentImageToRename = null
-            selectedFolder = null //clear
+            selectedFolder = null
         }
         renameDialog = builder.create()
     }
