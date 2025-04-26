@@ -78,11 +78,13 @@ class QuizActivity : AppCompatActivity() {
     private fun displayQuestion(index: Int) {
         val currentQuestionData = quizQuestions[index]
         questionTextView.text = currentQuestionData.question
-        val options = currentQuestionData.options
-        option1RadioButton.text = options.getOrNull(0) ?: ""
-        option2RadioButton.text = options.getOrNull(1) ?: ""
-        option3RadioButton.text = options.getOrNull(2) ?: ""
-        option4RadioButton.text = options.getOrNull(3) ?: ""
+
+        val optionsList = currentQuestionData.options.split(", ").shuffled()
+
+        option1RadioButton.text = optionsList.getOrNull(0) ?: ""
+        option2RadioButton.text = optionsList.getOrNull(1) ?: ""
+        option3RadioButton.text = optionsList.getOrNull(2) ?: ""
+        option4RadioButton.text = optionsList.getOrNull(3) ?: ""
     }
 
     private fun showQuizResults() {

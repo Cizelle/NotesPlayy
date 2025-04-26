@@ -43,11 +43,18 @@ class QuizResultsActivity : AppCompatActivity() {
         for (i in quizQuestions.indices) {
             val correctAnswer = quizQuestions[i].correctAnswer
             val userAnswer = userAnswers[i]
-            val isCorrect = userAnswer == correctAnswer
+            val isCorrect = userAnswer.equals(correctAnswer, ignoreCase = true)
             if (isCorrect) {
                 score++
             }
-            results.add(QuizResult(quizQuestions[i].question, userAnswer ?: "", correctAnswer))
+            results.add(
+                QuizResult(
+                    quizQuestions[i].question,
+                    userAnswer ?: "",
+                    correctAnswer,
+                    isCorrect
+                )
+            )
         }
 
         scoreTextView.text = "Your Score: $score / ${quizQuestions.size}"
@@ -56,5 +63,10 @@ class QuizResultsActivity : AppCompatActivity() {
         resultsRecyclerView.adapter = resultsAdapter
     }
 
-    data class QuizResult(val question: String, val userAnswer: String, val correctAnswer: String)
+    data class QuizResult(
+        val question: String,
+        val userAnswer: String,
+        val correctAnswer: String,
+        val isUserAnswerCorrect: Boolean
+    )
 }

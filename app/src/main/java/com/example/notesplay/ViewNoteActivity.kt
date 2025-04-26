@@ -23,7 +23,7 @@ class ViewNoteActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_view_note)
 
-        noteEditText = findViewById(R.id.noteEditText) //edit
+        noteEditText = findViewById(R.id.noteEditText)
         noteTitleEditText = findViewById(R.id.noteTitleEditText)
         saveEditedNoteButton = findViewById(R.id.saveEditedNoteButton)
 

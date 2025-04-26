@@ -231,11 +231,13 @@ class NoteListActivity : AppCompatActivity() {
 
                     if (question != sentence) {
                         val distractors = keywordList.filter { it != correctAnswer }.shuffled().take(3)
-                        val options = mutableListOf(correctAnswer)
-                        options.addAll(distractors)
-                        options.shuffle()
+                        val optionsList = mutableListOf(correctAnswer)
+                        optionsList.addAll(distractors)
+                        optionsList.shuffle()
 
-                        quizItems.add(QuizItem(question, correctAnswer, options))
+                        val optionsString = optionsList.joinToString(", ")
+
+                        quizItems.add(QuizItem(question, correctAnswer, optionsString)) // Pass the correctAnswer
                         break
                     }
                 }
@@ -250,6 +252,7 @@ class NoteListActivity : AppCompatActivity() {
             Toast.makeText(this, "Could not generate quiz questions.", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)

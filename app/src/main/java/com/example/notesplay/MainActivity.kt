@@ -10,6 +10,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.SearchView
@@ -27,11 +31,19 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
+import android.widget.ArrayAdapter
+import android.content.ContentValues
+import android.os.Environment
+import java.text.SimpleDateFormat
+import java.util.*
+import android.widget.LinearLayout
+import androidx.core.view.isVisible
 
 private const val CAMERA_PERMISSION_REQUEST = 100
 private const val CAMERA_REQUEST_CODE = 101
 private const val GALLERY_PERMISSION_REQUEST = 200
 private const val GALLERY_REQUEST_CODE = 201
+private const val TAG = "NotesPlay"
 
 class MainActivity : AppCompatActivity() {
 
@@ -43,7 +55,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var importNoteButton: Button
     private lateinit var searchView: SearchView
     private lateinit var noteTitleEditTextMain: EditText
-    private var selectedFolder:String? = null
+    private var selectedFolder: String? = null
+    private var searchResultsDialog: AlertDialog? = null
+    private lateinit var searchResultItems: MutableList<Pair<String, String>>
+    private lateinit var searchResultItemsAdapter: ArrayAdapter<String>
+    private var imageBitmap: Bitmap? = null // Hold the bitmap
+    private var imageFileName: String? = null
+    private var extractedText: String? = null
+    private lateinit var renameEditText: EditText
+    private lateinit var renameDialog: AlertDialog
+    private var currentImageToRename: String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,11 +117,19 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Please provide a note title.", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Please enter some text in the note.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please enter some text in the note.", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
 
+        // Initialize the variables for search results
+        searchResultItems = mutableListOf()
 
+        searchResultItemsAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_list_item_1,
+            mutableListOf() // ✅ start with empty, mutable list
+        )
 
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -113,34 +142,54 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         })
+
+// setup rename dialog
+        setupRenameDialog()
     }
 
     private fun performSearch(query: String) {
-        val searchResults = mutableListOf<Pair<String, String>>()
         val rootDir = filesDir
+        searchResultItems.clear()
+        searchInFolder(rootDir, query)
 
-        fun searchInFolder(folder: File) {
-            folder.listFiles()?.forEach { file ->
-                if (file.isFile) {
-                    val fileName = file.name
-                    val fileContent = readFileContent(file)
-                    if (fileContent.contains(query, ignoreCase = true)) {
-                        searchResults.add(Pair(fileName, folder.name))
-                    }
-                } else if (file.isDirectory) {
-                    searchInFolder(file)
-                }
+        if (searchResultItems.isNotEmpty()) {
+            searchResultItemsAdapter.clear()
+            val resultStrings = searchResultItems.map { "${it.first} (in ${it.second})" }
+            searchResultItemsAdapter.addAll(resultStrings) // ✅ add a list of strings
+            searchResultItemsAdapter.notifyDataSetChanged()
+
+            if (searchResultsDialog == null || !searchResultsDialog!!.isShowing) {
+                showSearchResultsDialog()
             }
-        }
-
-        searchInFolder(rootDir)
-
-        if (searchResults.isNotEmpty()) {
-            showSearchResultsDialog(searchResults)
         } else {
+            searchResultsDialog?.dismiss()
+            searchResultsDialog = null
             Toast.makeText(this, "No notes found matching '$query'.", Toast.LENGTH_SHORT).show()
         }
     }
+
+
+    private fun searchInFolder(folder: File, query: String) {
+        // Check if folder name matches the query
+        if (folder.name.contains(query, ignoreCase = true)) {
+            searchResultItems.add(Pair("📁 Folder: ${folder.name}", folder.parentFile?.name ?: "Root"))
+        }
+
+        folder.listFiles()?.forEach { file ->
+            if (file.isFile) {
+                val fileName = file.name
+                val fileContent = readFileContent(file)
+
+                if (fileName.contains(query, ignoreCase = true) || fileContent.contains(query, ignoreCase = true)) {
+                    // File match: show nicely
+                    searchResultItems.add(Pair("📄 $fileName (in ${folder.name})", folder.name))
+                }
+            } else if (file.isDirectory) {
+                searchInFolder(file, query) // Recursive search in subfolders
+            }
+        }
+    }
+
 
     private fun readFileContent(file: File): String {
         var content = ""
@@ -164,32 +213,48 @@ class MainActivity : AppCompatActivity() {
         return content
     }
 
-    private fun showSearchResultsDialog(results: List<Pair<String, String>>) {
+    private fun showSearchResultsDialog() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Search Results")
-        val resultItems = results.map { "${it.first} (in ${it.second})" }.toTypedArray()
-        builder.setItems(resultItems) { dialog, which ->
-            val selectedResult = results[which]
+        builder.setAdapter(searchResultItemsAdapter) { dialog, which ->
+            val selectedResult = searchResultItems[which]
             val fileName = selectedResult.first
             val folderName = selectedResult.second
-            // Open the selected note
-            if (fileName.endsWith(".txt")) {
-                val intent = Intent(this, ViewNoteActivity::class.java)
-                intent.putExtra("FOLDER_NAME", folderName)
-                intent.putExtra("NOTE_FILE_NAME", fileName)
-                startActivity(intent)
-            } else if (fileName.endsWith(".jpg")) {
-                val intent = Intent(this, ViewImageNoteActivity::class.java)
-                intent.putExtra("FOLDER_NAME", folderName)
-                intent.putExtra("NOTE_FILE_NAME", fileName)
-                startActivity(intent)
-            }
+            openNote(fileName, folderName)
+
         }
         builder.setPositiveButton("Close") { dialog, _ ->
             dialog.dismiss()
+            searchResultsDialog = null
         }
-        builder.show()
+        searchResultsDialog = builder.create()
+        searchResultsDialog?.show()
     }
+
+    private fun openNote(fileName: String, folderName: String) {
+        if (fileName.startsWith("📄")) {
+            val actualFileName = fileName.substringAfter("📄 ").substringBefore(" (in ")
+            val fileExtension = if (actualFileName.endsWith(".txt")) ".txt" else if (actualFileName.endsWith(".jpg")) ".jpg" else ""
+            if (fileExtension == ".txt") {
+                val intent = Intent(this, ViewNoteActivity::class.java)
+                intent.putExtra("FOLDER_NAME", folderName)
+                intent.putExtra("NOTE_FILE_NAME", actualFileName)
+                startActivity(intent)
+            } else if (fileExtension == ".jpg") {
+                val intent = Intent(this, ViewImageNoteActivity::class.java)
+                intent.putExtra("FOLDER_NAME", folderName)
+                intent.putExtra("NOTE_FILE_NAME", actualFileName)
+                startActivity(intent)
+            }
+
+        } else if (fileName.startsWith("📁")) {
+            val folderNameOnly = fileName.substringAfter("📁 Folder: ")
+            val intent = Intent(this, FolderListActivity::class.java)
+            intent.putExtra("FOLDER_NAME", folderNameOnly)
+            startActivity(intent)
+        }
+    }
+
 
     private fun showFolderSelectionDialog(noteText: String, noteTitle: String) {
         val filesDir = filesDir
@@ -202,7 +267,11 @@ class MainActivity : AppCompatActivity() {
                 val selectedFolder = folderNames[which]
                 saveNoteToFile(noteText, selectedFolder, "$noteTitle.txt")
                 dialog.dismiss()
-                Toast.makeText(this, "Note saved to folder '$selectedFolder' with title '$noteTitle'!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Note saved to folder '$selectedFolder' with title '$noteTitle'!",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.cancel()
@@ -210,6 +279,42 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun showImageFolderSelectionDialog() {
+        val filesDir = filesDir
+        val directories = filesDir.listFiles { file -> file.isDirectory }
+        val folderNames = directories?.map { it.name }?.toTypedArray() ?: arrayOf("default_folder")
+
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Select Folder to Save Image")
+            .setItems(folderNames) { dialog, which ->
+                selectedFolder = folderNames[which] // Store the selected folder
+                val imageToSave = imageBitmap
+                val fileNameToSave = imageFileName
+                val textToSave = extractedText
+                if (imageToSave != null && fileNameToSave != null) {
+                    currentImageToRename = fileNameToSave
+                    if (textToSave != null) {
+                        renameEditText.setText(fileNameToSave.replace(".jpg", ""))
+                    } else {
+                        renameEditText.setText(fileNameToSave.replace(".jpg", ""))
+                    }
+                    renameDialog.show()
+                } else {
+                    Toast.makeText(this, "Error: No image to save.", Toast.LENGTH_SHORT).show()
+                }
+
+                dialog.dismiss()
+
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.cancel()
+                imageBitmap = null
+                imageFileName = null
+                extractedText = null
+                selectedFolder = null // Clear
+            }
+            .show()
+    }
 
     private fun checkCameraPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -226,8 +331,11 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_REQUEST) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -235,8 +343,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "Camera permission denied.", Toast.LENGTH_SHORT).show()
             }
-        }
-        if (requestCode == GALLERY_PERMISSION_REQUEST) {
+        } else if (requestCode == GALLERY_PERMISSION_REQUEST) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 launchGallery()
             } else {
@@ -253,11 +360,11 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == CAMERA_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            val imageBitmap = data?.extras?.get("data") as? Bitmap
+            imageBitmap = data?.extras?.get("data") as? Bitmap
+            imageFileName = generateUniqueFileName(".jpg")
             imageBitmap?.let {
-                recognizeText(it) // Perform OCR
-                saveImageToFile(it, "image_notes", generateUniqueFileName(".jpg"))
-                Toast.makeText(this, "Image note saved!", Toast.LENGTH_SHORT).show()
+                recognizeText(it, imageFileName!!)
+                showImageFolderSelectionDialog()
             } ?: run {
                 Toast.makeText(this, "Error capturing image.", Toast.LENGTH_SHORT).show()
             }
@@ -270,12 +377,17 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         MediaStore.Images.Media.getBitmap(contentResolver, uri)
                     }
+                    imageBitmap = bitmap
+                    imageFileName = generateUniqueFileName(".jpg")
                     bitmap?.let {
-                        recognizeText(it) // Perform OCR
-                        saveImageToFile(it, "image_notes", generateUniqueFileName(".jpg"))
-                        Toast.makeText(this, "Image from gallery saved!", Toast.LENGTH_SHORT).show()
+                        recognizeTextFromFile(uri)
+                        showImageFolderSelectionDialog()
                     } ?: run {
-                        Toast.makeText(this, "Error decoding image from gallery.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            "Error decoding image from gallery.",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 } catch (e: IOException) {
                     e.printStackTrace()
@@ -287,27 +399,50 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun recognizeText(bitmap: Bitmap) {
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) // Using Latin options
+    private fun recognizeText(bitmap: Bitmap, imageName: String) {
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val image = InputImage.fromBitmap(bitmap, 0)
 
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                val extractedText = visionText.text
-                if (extractedText.isNotEmpty()) {
-                    val imageName = generateUniqueFileName(".jpg")
-                    val textFileName = imageName.replace(".jpg", ".txt")
-                    saveTextToFile(extractedText, "image_notes", textFileName)
-                    Toast.makeText(this, "Text extracted (including handwriting?) and saved!", Toast.LENGTH_SHORT).show()
+                extractedText = visionText.text
+                if (extractedText != null && extractedText!!.isNotEmpty()) {
+                    Log.d(TAG, "Extracted Text: $extractedText")
                 } else {
-                    Toast.makeText(this, "No text found in the image.", Toast.LENGTH_SHORT).show()
+                    extractedText = null
+                    Log.d(TAG, "No text found")
                 }
             }
             .addOnFailureListener { e ->
                 e.printStackTrace()
-                Toast.makeText(this, "Error during text recognition.", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "Text recognition failed", e)
             }
+    }
+
+    private fun recognizeTextFromFile(imageUri: Uri) {
+        try {
+            val image = InputImage.fromFilePath(this, imageUri)
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    extractedText = visionText.text
+                    if (extractedText != null && extractedText!!.isNotEmpty()) {
+                        Log.d(TAG, "Extracted Text: $extractedText")
+                    } else {
+                        extractedText = null
+                        Log.d(TAG, "No text found")
+                    }
+                }
+                .addOnFailureListener { e ->
+                    e.printStackTrace()
+                    Log.e(TAG, "Text recognition failed", e)
+                }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Log.e(TAG, "Error loading image", e)
+        }
     }
 
     private fun saveTextToFile(text: String, folderName: String, fileName: String) {
@@ -325,7 +460,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Error saving extracted text.", Toast.LENGTH_SHORT).show()
         }
     }
-
 
     private fun generateUniqueFileName(extension: String): String {
         return "note_${System.currentTimeMillis()}${extension}"
@@ -348,7 +482,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun saveImageToFile(bitmap: Bitmap, folderName: String, fileName: String) {
         val directory = File(filesDir, folderName)
         if (!directory.exists()) {
@@ -357,7 +490,7 @@ class MainActivity : AppCompatActivity() {
         val file = File(directory, fileName)
         try {
             val fileOutputStream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fileOutputStream) // Compress image
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fileOutputStream)
             fileOutputStream.close()
         } catch (e: IOException) {
             e.printStackTrace()
@@ -393,5 +526,47 @@ class MainActivity : AppCompatActivity() {
         startActivityForResult(intent, GALLERY_REQUEST_CODE)
     }
 
+    private fun setupRenameDialog() {
+        val builder = AlertDialog.Builder(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_rename, null)
+        renameEditText = view.findViewById(R.id.renameEditText)
+        builder.setView(view)
+        builder.setTitle("Rename Note")
+        builder.setPositiveButton("Save") { dialog, _ ->
+            val newName = renameEditText.text.toString().trim()
+            if (newName.isNotEmpty() && currentImageToRename != null) {
+                // Use the selectedFolder here.  This is the key change.
+                val selectedFolderToUse = selectedFolder ?: "image_notes"
+                val imageToSave = imageBitmap
+                val textToSave = extractedText
+                val newImageName = "$newName.jpg"
+                val newTextName = "$newName.txt"
+                if (imageToSave != null) {
+                    saveImageToFile(imageToSave, selectedFolderToUse, newImageName)
+                }
+                if (textToSave != null) {
+                    saveTextToFile(textToSave, selectedFolderToUse, newTextName)
+                }
 
+                Toast.makeText(this, "Note renamed to $newName", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                imageBitmap = null
+                imageFileName = null
+                extractedText = null
+                currentImageToRename = null
+                selectedFolder = null //clear
+            } else {
+                Toast.makeText(this, "Please enter a valid name.", Toast.LENGTH_SHORT).show()
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ ->
+            dialog.cancel()
+            imageBitmap = null
+            imageFileName = null
+            extractedText = null
+            currentImageToRename = null
+            selectedFolder = null //clear
+        }
+        renameDialog = builder.create()
+    }
 }
